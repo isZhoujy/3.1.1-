@@ -1,0 +1,9 @@
+{
+  /* Base configuration. Do not edit this field. */
+  "extends": "./temp/tsconfig.cocos.json",
+  "compilerOptions": {
+    "strictNullChecks": false // 关闭它
+  },
+  "noImplicitAny": false
+  /* Add your custom configuration here. */
+}
