@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    
+</body>
+<script>
+ function MyInxDB(sql,num){
+      this.current_version = num || 1;
+      if(num && this.current_version!=num){
+        this.current_version++;
+      }
+      this.indexdb = null;
+      this.tables = [];
+      this.isSupport = true;
+      var indexedDB = window.indexedDB || window.mozIndexedDB || window.webkitIndexedDB || window.msIndexedDB;
+      var self = this;
+      if(!indexedDB) {
+        this.isSupport = false;
+        return;
+      };
+      var request = indexedDB.open(sql, this.current_version);
+      request.onsuccess = function(event){
+        console.log('onsuccess')
+        document.body.innerHTML += 'indexDB链接成功<br/>';
+        self.isOpen = true;
+        self.indexdb = self.utils.db = event.target.result;
+        for(var i =0;i<self.tables.length;i++){
+          if(!self[self.tables[i].key]){
+            (function(o){
+              Object.defineProperty(self,self.tables[o].key,{
+                get:function(){
+                  self.utils.table = self.tables[o].key;
+                  return self.utils;
+                }
+              })
+            })(i)
+          }
+        }
+        self.complete && self.complete(0);
+      };
+      request.onupgradeneeded = function(event) {
+        console.log('onupgradeneeded')
+        document.body.innerHTML += 'indexDB链接成功<br/>';
+        self.indexdb = self.utils.db = event.target.result;
+        for(var i =0;i<self.tables.length;i++){
+          if (!self.indexdb.objectStoreNames.contains(self.tables[i].key)) {
+            var objectStore = self.indexdb.createObjectStore(self.tables[i].key, {
+              keyPath: self.tables[i].val[0],autoIncrement: false
+            });
+            for(var j=1;j<self.tables[i].val.length;j++){
+              objectStore.createIndex(self.tables[i].val[j], self.tables[i].val[j], { unique: false });
+            }
+          }
+        }
+      }
+      request.onerror = function() {
+        self.complete && self.complete(1);
+        document.body.innerHTML += 'indexDB链接onerror<br/>';
+        console.error('onerror')
+      };
+    }
+    MyInxDB.prototype.stores = function(obj){
+      for(var i in obj){
+        var tableMap = {}
+        tableMap.key = i;
+        tableMap.val = obj[i].split(',');
+        this.tables.push(tableMap)
+      }
+    }
+    MyInxDB.prototype.creatTable = function(table,keyPath){
+      if(!this.indexdb) return;
+      if (!this.indexdb.objectStoreNames.contains(table)) {
+        this.indexdb.createObjectStore(table, {
+          keyPath: keyPath,autoIncrement: false
+        });
+      }
+    }
+    MyInxDB.prototype.close = function(spl){
+      if(!this.indexdb) return;
+      if(this.isOpen){
+        this.indexdb.close();
+      }
+    }
+    MyInxDB.prototype.utils = {
+      db : null,
+      table : null,
+      put : function (data,succ){
+        if(!this.db) return;
+        var res = this.db.transaction([this.table], 'readwrite').objectStore(this.table).put(data);
+        res.onsuccess = function(){
+          succ && succ(0);
+        }
+        res.onerror = function(){
+          succ && succ(1);
+        }
+      },
+      get : function (key,succ){
+        if(!this.db) return;
+        var res = this.db.transaction([this.table], 'readwrite').objectStore(this.table).get(key);
+        res.onsuccess = function(e){
+          var resultData = e.target.result;
+          succ && succ(0, resultData);
+        }
+        res.onerror = function(){
+          succ && succ(1);
+        }
+      },
+      delete : function(key,succ){
+        var self = this;
+        this.get(key,function(e,data){
+          if(data){
+            var res = self.db.transaction([self.table], 'readwrite').objectStore(self.table).delete(key);
+            res.onsuccess = function(e){
+              succ && succ(0);
+            }
+            res.onerror = function(){
+              succ && succ(1);
+            }
+          }else{
+            succ && succ(0);
+          }
+        })
+      },
+      clearAll : function (succ){
+        if(!this.db) return;
+        var result = this.db.transaction(this.table, 'readwrite').objectStore(this.table).clear();
+        result.onsuccess =function(){
+          succ && succ(0);
+        }
+        result.onerror = function() {
+          succ && succ(1);
+        }
+      }
+    }
+    document.body.innerHTML = '开始进入<br/><hr/>';
+    window.MPQDB = new MyInxDB("huanling");
+    if(window.MPQDB.isSupport){
+        document.body.innerHTML += '支持indexDB<br/><hr/>';
+        MPQDB.stores({
+        pJson: 'id,val',
+        reshash:'id,val',
+        text:'id,val',
+        });
+    }else{
+        document.body.innerHTML += '不支持indexDB<br/><hr/>';
+        window.MPQDB = null;
+    }
+    try{
+        let a = 123;
+        document.body.innerHTML += '支持Let声明<br/><hr/>';
+    }catch(e){
+        document.body.innerHTML += '不支持Let声明<br/>';
+    }
+</script>
+</html>
